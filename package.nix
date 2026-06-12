@@ -2,8 +2,9 @@
   lib,
   stdenv,
   fetchurl,
-  autoPatchelfHook,
+  patchelf,
   makeWrapper,
+  glibc,
 }:
 let
   version = "0.14.2";
@@ -19,31 +20,43 @@ let
     };
   };
 
-  src = srcs.${stdenv.hostPlatform.system} or (throw "Unsupported system: ${stdenv.hostPlatform.system}");
+  platformSrc = srcs.${stdenv.hostPlatform.system} or (throw "Unsupported system: ${stdenv.hostPlatform.system}");
+
+  libPath = lib.makeLibraryPath [
+    stdenv.cc.cc.lib # libstdc++
+    glibc
+  ];
 in
 stdenv.mkDerivation {
   pname = "kimi-code";
   inherit version;
 
   src = fetchurl {
-    inherit (src) url hash;
+    inherit (platformSrc) url hash;
   };
 
   # fetchurl expects an archive by default; we're fetching a raw binary
   dontUnpack = true;
 
   nativeBuildInputs = [
-    autoPatchelfHook
+    patchelf
     makeWrapper
   ];
 
-  buildInputs = [
-    stdenv.cc.cc.lib # libstdc++
-  ];
+  # autoPatchelfHook corrupts this binary's ELF segments (shifts .init
+  # section offset without updating LOAD program headers, causing SIGILL
+  # at _init). Manual patchelf preserves segment alignment correctly.
+  dontAutoPatchelf = true;
+  dontStrip = true;
+  dontPatchELF = true;
 
   installPhase = ''
     runHook preInstall
     install -Dm755 $src $out/bin/kimi
+    patchelf \
+      --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" \
+      --set-rpath "${libPath}" \
+      $out/bin/kimi
     runHook postInstall
   '';
 
