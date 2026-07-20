@@ -7,16 +7,16 @@
   glibc,
 }:
 let
-  version = "0.27.0";
+  version = "0.28.0";
 
   srcs = {
     x86_64-linux = {
       url = "https://code.kimi.com/kimi-code/binaries/${version}/kimi-code-linux-x64";
-      hash = "sha256-7surRbwbmStkjEY4eglyw0D6x9iyVJYW8erOyQ5ZWjE=";
+      hash = "sha256-0dNT0OJslkbtxiclynyB/GQhgw/FGW4eyopS8aAn5qc=";
     };
     aarch64-linux = {
       url = "https://code.kimi.com/kimi-code/binaries/${version}/kimi-code-linux-arm64";
-      hash = "sha256-R2al6jO+sbIGbdlxLH8CxukbUQxModEX8xovicLfoCQ=";
+      hash = "sha256-8wZ6LHp2QLxThJAq6emXqxxCCziZ5ugQwO+dc0GIsrQ=";
     };
   };
 
