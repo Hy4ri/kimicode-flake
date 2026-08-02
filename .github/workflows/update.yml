@@ -22,7 +22,17 @@ jobs:
         id: check
         run: |
           echo "Fetching latest kimi-code version..."
-          LATEST_VERSION=$(curl -fsSL "https://code.kimi.com/kimi-code/latest" | tr -d '[:space:]')
+          # Harden the fetch: fail fast on connect, retry transient errors,
+          # and fall back to the CDN edge (cdn.kimi.com) if the origin
+          # (behind an anti-DDoS proxy) is unreachable from the runner.
+          fetch_latest() {
+            curl -fsSL --connect-timeout 10 --max-time 30 --retry 3 --retry-delay 3 --retry-all-errors "$1" | tr -d '[:space:]' || true
+          }
+          LATEST_VERSION="$(fetch_latest "https://code.kimi.com/kimi-code/latest")"
+          if [ -z "$LATEST_VERSION" ]; then
+            echo "Primary endpoint unreachable, trying CDN..."
+            LATEST_VERSION="$(fetch_latest "https://cdn.kimi.com/kimi-code/latest")"
+          fi
 
           if [ -z "$LATEST_VERSION" ]; then
             echo "Could not fetch latest version."

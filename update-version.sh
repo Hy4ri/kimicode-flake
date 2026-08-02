@@ -32,7 +32,16 @@ fi
 # -------------------------------------------------------------------
 if [[ -z "$version" ]]; then
   echo "Fetching latest version from https://code.kimi.com/kimi-code/latest ..."
-  version=$(curl -fsSL "https://code.kimi.com/kimi-code/latest" | tr -d '[:space:]')
+  # Harden the fetch: fail fast on connect, retry transient errors,
+  # and fall back to the CDN edge (cdn.kimi.com) if the origin is unreachable.
+  fetch_latest() {
+    curl -fsSL --connect-timeout 10 --max-time 30 --retry 3 --retry-delay 3 --retry-all-errors "$1" | tr -d '[:space:]' || true
+  }
+  version="$(fetch_latest "https://code.kimi.com/kimi-code/latest")"
+  if [[ -z "$version" ]]; then
+    echo "Primary endpoint unreachable, trying CDN..."
+    version="$(fetch_latest "https://cdn.kimi.com/kimi-code/latest")"
+  fi
 fi
 
 if [[ -z "$version" ]]; then
@@ -49,7 +58,7 @@ echo "------------------------------------------------"
 # -------------------------------------------------------------------
 manifest_url="https://code.kimi.com/kimi-code/binaries/${version}/manifest.json"
 echo "Fetching manifest from ${manifest_url} ..."
-manifest=$(curl -fsSL "$manifest_url")
+manifest=$(curl -fsSL --connect-timeout 10 --max-time 30 --retry 3 --retry-delay 3 --retry-all-errors "$manifest_url" || true)
 
 if [[ -z "$manifest" ]]; then
   echo "Error: Failed to fetch manifest. Check if version '$version' exists."
